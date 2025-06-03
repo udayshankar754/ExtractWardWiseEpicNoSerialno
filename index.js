@@ -11,48 +11,25 @@ const extractDataFromPDF2 = (dataBuffer) => {
     .then((data) => {
       let extractText = data?.text;
       extractText = extractText.replace(/\s+/g, " ").trim();
-      let matches = extractText.split(" िल ं ग");
-
+      console.log(">>>>>",data?.text)
       if (!extractText) {
         return []; // Handle case where there's no text in the PDF.
       }
-      matches.shift();
 
-      if (!matches) {
+      const regex = /[A-Za-z]{3}\d+/g; // Match any 3 letters (A-Z or a-z) followed by digits
+      const matchedNumber = [...extractText.matchAll(/I\s*(\d+)\s*1/g)].map(match => match[1]);
+      const number = matchedNumber;
+      console.log('mathed element:.....', number)
+      const rec = extractText
+        .match(regex)
+        ?.map((i) => (i.length == 10 ? i : null))
+        .filter((i) => i !== null);
+
+      if (!rec) {
         return []; // No matches found.
       }
 
-      let matcheData = matches.map((i) => {
-        const matches = i.split("*");
-        // console.log(matches[0])
-        let requiredData;
-        if (matches[0].includes("HR")) {
-          // [ '      प\n\nष\n1458HR/03/16/0012192 ' ]
-
-          let rec = matches[0]?.split("HR");
-
-          let epicNo = "HR" + rec[1]?.trim();
-
-          let serialNo = rec[0]?.split(" ");
-          serialNo = serialNo[serialNo?.length - 1];
-          requiredData = {
-            epicNo: epicNo,
-            serialNo: serialNo,
-          };
-        } else {
-          let rec = matches[0].split(/(?=[A-Z]{3})/);
-          let serialNo = rec[0]?.split(" ");
-          serialNo = serialNo[serialNo?.length - 1];
-
-          requiredData = {
-            epicNO: rec[1]?.trim(),
-            serialNo: serialNo,
-          };
-        }
-        return requiredData;
-      });
-
-      return matcheData;
+      return rec?.map((i) => ({ epicNO: i }));
     })
     .catch((error) => {
       console.error("Error extracting data from PDF:", error);
@@ -61,11 +38,10 @@ const extractDataFromPDF2 = (dataBuffer) => {
 };
 
 app.get("/extract", (req, res) => {
-
   const folderPath =
-    "C:/Users/Administrator/Desktop/uday_15_11_24/test/2025/ExtractWardWiseEpicNoSerialno/tes"; // Path to your folder
+    "C:/Users/Administrator/Downloads/ExtractWardWiseEpicNoSerialno/ExtractWardWiseEpicNoSerialno/ExtractWardWiseEpicNoSerialno/input"; // Path to your folder
   const outputDir =
-    "C:/Users/Administrator/Desktop/uday_15_11_24/test/2025/ExtractWardWiseEpicNoSerialno/output"; // Target directory to save CSV
+    "C:/Users/Administrator/Downloads/ExtractWardWiseEpicNoSerialno/ExtractWardWiseEpicNoSerialno/ExtractWardWiseEpicNoSerialno/output"; // Target directory to save CSV
   let datatobeREquired = [];
 
   if (!fs.existsSync(folderPath)) {
@@ -100,26 +76,22 @@ app.get("/extract", (req, res) => {
 
           extractDataFromPDF2(dataBuffer)
             .then((extractedData) => {
-
               extractedData
-                .filter(
-                  (i) => i?.epicNO !== undefined && i?.serialNo !== undefined
-                )
-                .forEach((item) => {
+                .filter((i) => i?.epicNO !== undefined)
+                .forEach((item, index) => {
                   datatobeREquired.push({
                     fileName,
                     epicNO: item.epicNO,
-                    serialNo: item.serialNo,
+                    serial_no: index
                   });
                 });
-              fs.unlinkSync(filePath);
+              // fs.unlinkSync(filePath);
               resolve();
             })
             .catch((error) => {
-              fs.unlinkSync(filePath);
+              // fs.unlinkSync(filePath);
               reject(error);
             });
-       
         });
       });
     });
@@ -131,9 +103,9 @@ app.get("/extract", (req, res) => {
         const csvWriter = createObjectCsvWriter({
           path: csvFilePath,
           header: [
+            { id: "serial_no", title: "Serial No" },
             { id: "fileName", title: "File Name" },
             { id: "epicNO", title: "Epic No" },
-            { id: "serialNo", title: "Serial No" },
           ],
         });
 
